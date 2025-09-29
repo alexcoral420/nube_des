@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orden de Pedido - Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #notification { transition: opacity 0.5s, transform 0.5s; }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; filter: invert(0.5); }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen py-12 px-4">
+
+    <div id="notification" class="hidden fixed top-5 right-5 bg-red-600 text-white py-3 px-5 rounded-lg shadow-xl z-50 flex items-center">
+        <i class="fas fa-exclamation-circle mr-3"></i>
+        <span id="notification-message"></span>
+    </div>
+
+    <div class="w-full max-w-3xl bg-white p-8 rounded-xl shadow-lg">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Crear Orden de Pedido</h1>
+            <p class="text-gray-500">Completa los datos para generar una nueva orden.</p>
+        </div>
+
+        <form id="sales-order-form" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div><label for="orderDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha de la Orden</label><input type="date" id="orderDate" name="orderDate" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm" required></div>
+                <div><label for="dispatchDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Despacho (Planificada)</label><input type="date" id="dispatchDate" name="dispatchDate" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm" required></div>
+            </div>
+            <div><label for="clientName" class="block text-sm font-medium text-gray-700 mb-1">Cliente</label><input type="text" id="clientName" name="clientName" placeholder="Nombre del cliente" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm" required></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div><label for="core" class="block text-sm font-medium text-gray-700 mb-1">Core</label><input type="text" id="core" name="core" placeholder="Ej: 3 Pulgadas" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                <div><label for="oc" class="block text-sm font-medium text-gray-700 mb-1">OC (Orden de Compra)</label><input type="text" id="oc" name="oc" placeholder="Ej: OC-12345" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+            </div>
+            <div>
+             <label for="deliveryAddress" class="block text-sm font-medium text-gray-700 mb-1">Dirección de Entrega</label>
+             <input type="text" id="deliveryAddress" name="deliveryAddress" placeholder="Dirección de entrega del pedido" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <hr/>
+
+            <div class="space-y-4">
+                <p class="text-lg font-semibold text-gray-700">Añadir Ítem al Pedido</p>
+                <div id="item-entry-form">
+                    <div>
+                        <label for="productType" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Producto</label>
+                        <select id="productType" name="productType" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm">
+                            <option value="" disabled selected>Selecciona un tipo</option>
+                            <option value="Bobina">Bobina</option>
+                            <option value="Bobina Negra">Bobina Negra</option>
+                            <option value="Rollo">Rollo</option>
+                            <option value="Rollo Negro">Rollo Negro</option>
+                            <option value="Cinta">Cinta</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+                        <div><label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label><input type="number" id="quantity" name="quantity" class="w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label for="width" class="block text-sm font-medium text-gray-700 mb-1">Ancho (cm)</label><input type="number" step="0.01" id="width" name="width" class="w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label for="gauge" class="block text-sm font-medium text-gray-700 mb-1">Calibre (mc)</label><input type="number" id="gauge" name="gauge" class="w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label for="weight" class="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label><input type="number" step="0.01" id="weight" name="weight" class="w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div><label for="price" class="block text-sm font-medium text-gray-700 mb-1">Precio Unit.</label><input type="number" step="0.01" id="price" name="price" class="w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                    </div>
+                    <button type="button" id="add-item-btn" class="mt-4 w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-700 transition duration-300">Agregar Ítem</button>
+                </div>
+            </div>
+            
+            <div class="space-y-2 pt-4 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-700">Ítems en la Orden</h3>
+                <div id="order-items-list" class="space-y-2"><p id="no-items-message" class="text-gray-500">Aún no se han agregado ítems.</p></div>
+            </div>
+
+            <div class="pt-4"><button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700">Enviar Orden de Pedido Completa</button></div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CAMBIO CRÍTICO: Apunta a tu servidor de producción ---
+            const API_URL = 'http://34.198.119.221:3000/api';
+            
+            const salesForm = document.getElementById('sales-order-form');
+            
+            // El código para navegación con flechas no necesita cambios y se omite por brevedad...
+            // --- INICIO: Código para navegación con flechas ---
+            const focusableElements = Array.from(
+                salesForm.querySelectorAll(
+                    'input:not([type="hidden"]), select, button:not(.remove-item-btn)'
+                )
+            );
+
+            salesForm.addEventListener('keydown', (e) => {
+                const currentElement = e.target;
+                const currentIndex = focusableElements.indexOf(currentElement);
+                if (currentIndex === -1) return;
+
+                if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                    if (e.key === 'Enter' && currentElement.tagName === 'BUTTON') { return; }
+                    e.preventDefault(); 
+                    const nextIndex = currentIndex + 1;
+                    if (nextIndex < focusableElements.length) { focusableElements[nextIndex].focus(); }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault(); 
+                    const prevIndex = currentIndex - 1;
+                    if (prevIndex >= 0) { focusableElements[prevIndex].focus(); }
+                }
+            });
+            // --- FIN: Código para navegación con flechas ---
+
+
+            const orderDateInput = document.getElementById('orderDate');
+            const dispatchDateInput = document.getElementById('dispatchDate');
+            orderDateInput.valueAsDate = new Date();
+            dispatchDateInput.valueAsDate = new Date();
+
+            const notificationEl = document.getElementById('notification');
+            const notificationMessageEl = document.getElementById('notification-message');
+
+            const showNotification = (message, type = 'error', duration = 5000) => {
+                notificationMessageEl.textContent = message;
+                notificationEl.classList.remove('bg-red-600', 'bg-green-500', 'bg-indigo-500');
+                if (type === 'error') notificationEl.classList.add('bg-red-600');
+                else if (type === 'success') notificationEl.classList.add('bg-green-500');
+                else notificationEl.classList.add('bg-indigo-500');
+                notificationEl.classList.remove('hidden');
+                setTimeout(() => { notificationEl.classList.add('hidden'); }, duration);
+            };
+
+            const formatCurrency = (value) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value || 0);
+
+            let currentOrderItems = [];
+            const addItemBtn = document.getElementById('add-item-btn');
+            const orderItemsList = document.getElementById('order-items-list');
+            const noItemsMessage = document.getElementById('no-items-message');
+            
+            const itemEntryForm = {
+                productType: document.getElementById('productType'),
+                quantity: document.getElementById('quantity'),
+                width: document.getElementById('width'),
+                gauge: document.getElementById('gauge'),
+                weight: document.getElementById('weight'),
+                price: document.getElementById('price')
+            };
+
+            // --- MEJORA DE SEGURIDAD #2: Previene ataques XSS ---
+            const renderOrderItems = () => {
+                orderItemsList.innerHTML = ''; // Limpia la lista de forma segura
+                if (currentOrderItems.length === 0) {
+                    orderItemsList.appendChild(noItemsMessage);
+                    noItemsMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                noItemsMessage.classList.add('hidden');
+                
+                currentOrderItems.forEach((item, index) => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'flex justify-between items-center bg-gray-50 p-2 rounded';
+
+                    // Se crea el contenido de forma segura, sin usar .innerHTML para los datos
+                    const descriptionSpan = document.createElement('span');
+                    descriptionSpan.innerHTML = `<b>${item.cantidad}x</b>`; // 'b' es seguro para un valor controlado
+                    
+                    // Se usa .textContent para añadir el resto de los datos, lo que los convierte en texto plano
+                    descriptionSpan.appendChild(document.createTextNode(` ${item.tipo_producto} - Precio: ${formatCurrency(item.precio_unitario)}`));
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'remove-item-btn text-red-500 hover:text-red-700';
+                    removeBtn.dataset.index = index;
+                    removeBtn.innerHTML = '&times;'; // El símbolo de 'x' es seguro de renderizar como HTML
+
+                    itemEl.appendChild(descriptionSpan);
+                    itemEl.appendChild(removeBtn);
+                    orderItemsList.appendChild(itemEl);
+                });
+            };
+
+            addItemBtn.addEventListener('click', () => {
+                const { productType, quantity, width, gauge, weight, price } = itemEntryForm;
+                if (!productType.value || !quantity.value || parseInt(quantity.value) <= 0) {
+                    showNotification('Tipo de producto y una cantidad válida son requeridos.', 'info');
+                    return;
+                }
+                currentOrderItems.push({
+                    tipo_producto: productType.value,
+                    cantidad: parseInt(quantity.value),
+                    ancho: parseFloat(width.value) || null,
+                    calibre: parseInt(gauge.value) || null,
+                    peso: parseFloat(weight.value) || null,
+                    precio_unitario: parseFloat(price.value) || 0
+                });
+                renderOrderItems();
+                Object.values(itemEntryForm).forEach(input => input.value = '');
+            });
+
+            orderItemsList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-item-btn')) {
+                    currentOrderItems.splice(e.target.dataset.index, 1);
+                    renderOrderItems();
+                }
+            });
+
+            salesForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                // --- MEJORA DE SEGURIDAD #1: Sanitización de entradas ---
+                const orderData = {
+                    fecha_orden: document.getElementById('orderDate').value,
+                    cliente: document.getElementById('clientName').value.trim(), // Limpia espacios
+                    direccion_entrega: document.getElementById('deliveryAddress').value.trim(), // Limpia espacios
+                    core: document.getElementById('core').value.trim(), // Limpia espacios
+                    oc: document.getElementById('oc').value.trim(), // Limpia espacios
+                    items: currentOrderItems
+                };
+                
+                if (!orderData.fecha_orden || !orderData.cliente) {
+                    showNotification('La fecha de orden y el nombre del cliente son requeridos.', 'error');
+                    return;
+                }
+                if (orderData.items.length === 0) {
+                    showNotification('Debe agregar al menos un ítem a la orden.', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_URL}/sales-orders`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderData)
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Fallo al enviar la orden');
+                    }
+                    showNotification('Orden de pedido enviada con éxito.', 'success');
+                    salesForm.reset();
+                    orderDateInput.valueAsDate = new Date();
+                    dispatchDateInput.valueAsDate = new Date();
+                    currentOrderItems = [];
+                    renderOrderItems();
+                } catch (error) {
+                    showNotification(`Error: ${error.message}`);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
