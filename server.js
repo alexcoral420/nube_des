@@ -1,98 +1,92 @@
-// Import required modules
+// --- IMPORTS Y CONFIGURACIÓN INICIAL ---
+require('dotenv').config(); // Carga las variables de entorno del archivo .env
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg'); // Driver de PostgreSQL
 const cors = require('cors');
-const path = require('path'); // Módulo 'path' es necesario
+const path = require('path');
 
-// Initialize express app
+// Inicializar la app de Express
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// --- MIDDLEWARE ---
+app.use(cors()); // Habilita CORS para permitir peticiones de tus frontends
+app.use(express.json()); // Permite al servidor entender JSON
 
-// --- UNIFIED DATABASE SETUP (master_data.db) ---
-const dbPath = path.resolve(__dirname, 'master_data.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) console.error("Error opening unified database", err.message);
-    else {
-        console.log("Connected to the UNIFIED MASTER SQLite database (master_data.db).");
-        db.serialize(); // Pone la base de datos en modo serializado para evitar bloqueos
+// --- CONEXIÓN A LA BASE DE DATOS POSTGRESQL ---
+const pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+});
+
+// Función para inicializar la base de datos
+const initializeDb = async () => {
+    const client = await pool.connect();
+    try {
+        console.log("Conectado a la base de datos PostgreSQL.");
+
+        await client.query("CREATE EXTENSION IF NOT EXISTS citext;"); 
         
-        db.run("PRAGMA foreign_keys = ON;");
         // STOCK TABLES
-        db.run(`CREATE TABLE IF NOT EXISTS stock_movements (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT NOT NULL, turno TEXT NOT NULL, movement_type TEXT NOT NULL, tipo_producto TEXT NOT NULL, cantidad INTEGER NOT NULL, ancho REAL, calibre INTEGER, peso REAL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
-        db.run(`CREATE TABLE IF NOT EXISTS current_stock (referencia_id TEXT PRIMARY KEY, tipo_producto TEXT NOT NULL, ancho REAL, calibre INTEGER, peso REAL, cantidad_actual INTEGER NOT NULL, last_updated TEXT)`);
+        await client.query(`CREATE TABLE IF NOT EXISTS stock_movements (id SERIAL PRIMARY KEY, fecha DATE NOT NULL, turno TEXT NOT NULL, movement_type TEXT NOT NULL, tipo_producto TEXT NOT NULL, cantidad INTEGER NOT NULL, ancho REAL, calibre INTEGER, peso REAL, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)`);
+        await client.query(`CREATE TABLE IF NOT EXISTS current_stock (referencia_id TEXT PRIMARY KEY, tipo_producto TEXT NOT NULL, ancho REAL, calibre INTEGER, peso REAL, cantidad_actual INTEGER NOT NULL, last_updated TIMESTAMPTZ)`);
+        
         // SALES ORDER TABLES
-        db.run(`CREATE TABLE IF NOT EXISTS sales_orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, fecha_orden TEXT NOT NULL, fecha_despacho TEXT,
+        await client.query(`CREATE TABLE IF NOT EXISTS sales_orders (
+            id SERIAL PRIMARY KEY, fecha_orden DATE NOT NULL, fecha_despacho DATE,
             cliente TEXT NOT NULL, core TEXT, oc TEXT, encargado_produccion TEXT, 
             direccion_entrega TEXT, 
-            numero_remision TEXT, fecha_pago TEXT, estado_factura TEXT, 
+            numero_remision TEXT, fecha_pago DATE, estado_factura TEXT, 
             valor_total_factura REAL, valor_abono REAL DEFAULT 0
         )`);
-        db.run(`CREATE TABLE IF NOT EXISTS sales_order_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, pedido_id INTEGER NOT NULL, tipo_producto TEXT NOT NULL,
-            cantidad INTEGER NOT NULL, ancho REAL, calibre INTEGER, peso REAL, precio_unitario REAL,
-            estado TEXT NOT NULL DEFAULT 'Pendiente', peso_neto REAL,
-            FOREIGN KEY (pedido_id) REFERENCES sales_orders (id) ON DELETE CASCADE
+        await client.query(`CREATE TABLE IF NOT EXISTS sales_order_items (
+            id SERIAL PRIMARY KEY, pedido_id INTEGER NOT NULL REFERENCES sales_orders(id) ON DELETE CASCADE, 
+            tipo_producto TEXT NOT NULL, cantidad INTEGER NOT NULL, ancho REAL, calibre INTEGER, peso REAL, 
+            precio_unitario REAL, estado TEXT NOT NULL DEFAULT 'Pendiente', peso_neto REAL
         )`);
-         // CLIENTS TABLE
-         db.run(`CREATE TABLE IF NOT EXISTS clientes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            direccion TEXT,
-            telefono TEXT,
-            contacto TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        
+        // CLIENTS TABLE
+        await client.query(`CREATE TABLE IF NOT EXISTS clientes (
+            id SERIAL PRIMARY KEY, nombre TEXT NOT NULL UNIQUE, direccion TEXT, telefono TEXT, contacto TEXT,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )`);
+
+        console.log("Tablas verificadas/creadas exitosamente.");
+
+    } catch (err) {
+        console.error("Error inicializando la base de datos", err.stack);
+    } finally {
+        client.release();
     }
-});
+};
 
-// Helper function for async db calls
-const dbAll = (sql, params = []) => new Promise((resolve, reject) => db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows)));
+// --- RUTAS DE LA API ---
 
-// --- INICIO DE TODAS TUS RUTAS DE API ---
+app.get('/api', (req, res) => res.send('API del servidor de datos unificado activa.'));
 
-app.get('/', (req, res) => res.send('Servidor de datos unificado activo.'));
+// (Aquí van todas tus rutas de API: /api/stock, /api/products, etc...)
 app.get('/api/stock', async (req, res) => { /* ... tu código ... */ });
-app.post('/api/products', (req, res) => { /* ... tu código ... */ });
+app.post('/api/products', async (req, res) => { /* ... tu código ... */ });
 app.get('/api/clientes', async (req, res) => { /* ... tu código ... */ });
-app.post('/api/clientes', (req, res) => { /* ... tu código ... */ });
-app.post('/api/sales-orders', (req, res) => { /* ... tu código ... */ });
-app.get('/api/sales-orders-with-items', async (req, res) => { /* ... tu código ... */ });
-app.put('/api/sales-items/:id/status', (req, res) => { /* ... tu código ... */ });
-app.get('/api/fabricated-orders', async (req, res) => { /* ... tu código ... */ });
-app.put('/api/sales-orders/:id/generate-remision', async (req, res) => { /* ... tu código ... */ });
-app.put('/api/sales-orders/:id/encargado', (req, res) => { /* ... tu código ... */ });
-app.put('/api/sales-orders/:id/billing', (req, res) => { /* ... tu código ... */ });
-app.get('/api/portfolio', async (req, res) => { /* ... tu código ... */ });
-app.put('/api/sales-orders/:id/payment', (req, res) => { /* ... tu código ... */ });
-// (He omitido el contenido de las funciones por brevedad, pero aquí van todas tus rutas)
-
-// --- FIN DE TODAS TUS RUTAS DE API ---
+app.post('/api/clientes', async (req, res) => { /* ... tu código ... */ });
+app.post('/api/sales-orders', async (req, res) => { /* ... tu código ... */ });
 
 
-// --- INICIO: CÓDIGO AÑADIDO PARA SERVIR EL FRONTEND ---
+// --- SERVIR EL FRONTEND DE VENTAS ---
+const salesFrontendPath = path.join(__dirname, 'public_sales');
+app.use(express.static(salesFrontendPath));
 
-// 1. Define la ruta a la carpeta que contiene tu index.html (ej. 'public_sales')
-const frontendPath = path.join(__dirname, 'public_sales');
-
-// 2. Sirve los archivos estáticos (HTML, CSS, JS) desde esa carpeta
-app.use(express.static(frontendPath));
-
-// 3. Ruta "catch-all": Si ninguna ruta de la API coincide, envía el index.html.
-//    Esto permite que el enrutamiento del lado del cliente funcione si lo añades en el futuro.
-//    DEBE ESTAR DESPUÉS DE TODAS LAS RUTAS DE LA API.
+// Ruta "catch-all" que sirve el index.html
 app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
+    res.sendFile(path.join(salesFrontendPath, 'index.html'));
 });
 
-// --- FIN: CÓDIGO AÑADIDO ---
 
-
-// --- START THE SERVER ---
+// --- INICIAR EL SERVIDOR ---
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor escuchando en la red, en el puerto ${PORT}`);
+    console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
+    initializeDb();
 });
